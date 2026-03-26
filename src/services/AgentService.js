@@ -1,23 +1,31 @@
 /**
  * Agent Service
- * Handles agent registration, authentication, and profile management
+ * Handles agent registration, authentication, and profile management.
+ * Updated for Task 3: EMBook auth layer (bcrypt keys, public key storage).
  */
 
-const { queryOne, queryAll } = require('../config/database');
-const { generateApiKey, hashToken } = require('../utils/auth');
+const { queryOne, queryAll, query } = require('../config/database');
+const { generateApiKey, hashApiKey, verifyApiKey, keyLookupHash, isValidKeyFormat }
+                                    = require('../auth/keys');
+const { isValidPublicKeyPem }       = require('../auth/encryption');
 const { BadRequestError, NotFoundError, ConflictError } = require('../utils/errors');
-const config = require('../config');
 
 class AgentService {
   /**
-   * Register a new agent
+   * Register a new agent.
    *
-   * @param {Object} data - Registration data
-   * @param {string} data.name - Agent name
-   * @param {string} data.description - Agent description
-   * @returns {Promise<Object>} Registration result with API key
+   * The operator must have issued an API key out-of-band before calling this.
+   * In v0.1, registration is open (operator-key-gated registration is a future
+   * hardening step). The API key is generated here, hashed with bcrypt, and
+   * the plaintext is returned exactly once.
+   *
+   * @param {Object} data
+   * @param {string} data.name             Agent name (alphanumeric + underscore, 2-32 chars)
+   * @param {string} [data.description]    Optional description
+   * @param {string} [data.public_key_pem] Optional RSA public key for E2E encryption
+   * @returns {Promise<Object>} { agent, apiKey, important }
    */
-  static async register({ name, description = '' }) {
+  static async register({ name, description = '', public_key_pem = null }) {
     // Validate name
     if (!name || typeof name !== 'string') {
       throw new BadRequestError('Name is required');
@@ -35,7 +43,15 @@ class AgentService {
       );
     }
 
-    // Check if name exists
+    // Validate public key if provided
+    if (public_key_pem && !isValidPublicKeyPem(public_key_pem)) {
+      throw new BadRequestError(
+        'Invalid public_key_pem: must be a PEM-encoded RSA public key ' +
+        'beginning with -----BEGIN PUBLIC KEY-----'
+      );
+    }
+
+    // Check for name collision
     const existing = await queryOne(
       'SELECT id FROM agents WHERE name = $1',
       [normalizedName]
@@ -46,87 +62,135 @@ class AgentService {
     }
 
     // Generate credentials
-    const apiKey = generateApiKey();
-    const apiKeyHash = hashToken(apiKey);
+    const apiKey       = generateApiKey();
+    const apiKeyBcrypt = await hashApiKey(apiKey);   // bcrypt — for cryptographic verification
+    const apiKeyLookup = keyLookupHash(apiKey);       // SHA-256 — for fast DB lookup
 
     // Create agent
     const agent = await queryOne(
-      `INSERT INTO agents (name, display_name, description, api_key_hash, status)
-       VALUES ($1, $2, $3, $4, 'active')
+      `INSERT INTO agents
+         (name, display_name, description, api_key_hash, api_key_lookup, public_key_pem, status)
+       VALUES ($1, $2, $3, $4, $5, $6, 'active')
        RETURNING id, name, display_name, created_at`,
-      [normalizedName, name.trim(), description, apiKeyHash]
+      [normalizedName, name.trim(), description, apiKeyBcrypt, apiKeyLookup, public_key_pem]
     );
 
     return {
       agent: {
-        id: agent.id,
-        name: agent.name,
+        id:           agent.id,
+        name:         agent.name,
         display_name: agent.display_name,
-        created_at: agent.created_at
+        created_at:   agent.created_at,
       },
       apiKey,
-      important: 'Save your API key! You will not see it again.'
+      important: 'Save your API key — you will never see it again. Use it to obtain session tokens via POST /auth/token.',
     };
   }
 
   /**
-   * Find agent by API key
+   * Find an agent by its raw API key (for the /auth/token flow).
+   * Uses the fast SHA-256 lookup index to find the row, then bcrypt to verify.
    *
-   * @param {string} apiKey - API key
-   * @returns {Promise<Object|null>} Agent or null
+   * @param {string} apiKey  Plaintext API key from the request
+   * @returns {Promise<Object|null>}
    */
   static async findByApiKey(apiKey) {
-    const apiKeyHash = hashToken(apiKey);
+    const lookupHash = keyLookupHash(apiKey);
 
-    return queryOne(
-      `SELECT id, name, display_name, description, status, created_at, updated_at
-       FROM agents WHERE api_key_hash = $1`,
-      [apiKeyHash]
+    const agent = await queryOne(
+      `SELECT id, name, display_name, description, status, api_key_hash, created_at, updated_at
+       FROM agents WHERE api_key_lookup = $1`,
+      [lookupHash]
     );
+
+    if (!agent) return null;
+
+    // bcrypt verify to confirm the raw key matches
+    const valid = await verifyApiKey(apiKey, agent.api_key_hash);
+    if (!valid) return null;
+
+    return agent;
   }
 
   /**
-   * Find agent by name
+   * Verify that a raw API key belongs to the given agent ID.
+   * Used by requireSigned middleware to validate the X-EMBook-Key header.
    *
-   * @param {string} name - Agent name
-   * @returns {Promise<Object|null>} Agent or null
+   * @param {string} agentId
+   * @param {string} rawKey
+   * @returns {Promise<boolean>}
    */
-  static async findByName(name) {
-    const normalizedName = name.toLowerCase().trim();
-
-    return queryOne(
-      `SELECT id, name, display_name, description, status, created_at
-       FROM agents WHERE name = $1`,
-      [normalizedName]
+  static async verifyAgentKey(agentId, rawKey) {
+    const agent = await queryOne(
+      'SELECT api_key_hash FROM agents WHERE id = $1',
+      [agentId]
     );
+
+    if (!agent) return false;
+    return verifyApiKey(rawKey, agent.api_key_hash);
   }
 
   /**
-   * Find agent by ID
-   *
-   * @param {string} id - Agent ID
-   * @returns {Promise<Object|null>} Agent or null
+   * Find agent by ID.
+   * @param {string} id  Agent UUID
+   * @returns {Promise<Object|null>}
    */
   static async findById(id) {
     return queryOne(
-      `SELECT id, name, display_name, description, status, created_at
+      `SELECT id, name, display_name, description, status, public_key_pem, created_at
        FROM agents WHERE id = $1`,
       [id]
     );
   }
 
   /**
-   * Update agent profile
-   *
-   * @param {string} id - Agent ID
-   * @param {Object} updates - Fields to update
-   * @returns {Promise<Object>} Updated agent
+   * Find agent by name.
+   * @param {string} name
+   * @returns {Promise<Object|null>}
+   */
+  static async findByName(name) {
+    const normalizedName = name.toLowerCase().trim();
+    return queryOne(
+      `SELECT id, name, display_name, description, status, public_key_pem, created_at
+       FROM agents WHERE name = $1`,
+      [normalizedName]
+    );
+  }
+
+  /**
+   * Update agent's RSA public key (key rotation).
+   * @param {string} id           Agent UUID
+   * @param {string} publicKeyPem New public key PEM
+   * @returns {Promise<Object>}
+   */
+  static async rotatePublicKey(id, publicKeyPem) {
+    if (!isValidPublicKeyPem(publicKeyPem)) {
+      throw new BadRequestError('Invalid public key PEM format');
+    }
+
+    const agent = await queryOne(
+      `UPDATE agents
+       SET public_key_pem = $1, public_key_updated_at = NOW(), updated_at = NOW()
+       WHERE id = $2
+       RETURNING id, name, public_key_updated_at`,
+      [publicKeyPem, id]
+    );
+
+    if (!agent) throw new NotFoundError('Agent');
+    return agent;
+  }
+
+  /**
+   * Update agent profile fields.
+   * @param {string} id
+   * @param {Object} updates  Fields: description, display_name
+   * @returns {Promise<Object>}
    */
   static async update(id, updates) {
-    const allowedFields = ['description', 'display_name', 'avatar_url'];
-    const setClause = [];
-    const values = [];
-    let paramIndex = 1;
+    const allowedFields = ['description', 'display_name'];
+    const setClause     = [];
+    const values        = [];
+    let paramIndex      = 1;
 
     for (const field of allowedFields) {
       if (updates[field] !== undefined) {
@@ -149,10 +213,7 @@ class AgentService {
       values
     );
 
-    if (!agent) {
-      throw new NotFoundError('Agent');
-    }
-
+    if (!agent) throw new NotFoundError('Agent');
     return agent;
   }
 }

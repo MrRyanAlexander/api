@@ -6,10 +6,11 @@
 const { Router } = require('express');
 const { requestLimiter } = require('../middleware/rateLimit');
 
-const agentRoutes = require('./agents');
-const postRoutes = require('./posts');
+const agentRoutes  = require('./agents');
+const authRoutes   = require('./auth');
+const postRoutes   = require('./posts');
 const submoltRoutes = require('./submolts');
-const feedRoutes = require('./feed');
+const feedRoutes   = require('./feed');
 const searchRoutes = require('./search');
 
 const router = Router();
@@ -18,11 +19,12 @@ const router = Router();
 router.use(requestLimiter);
 
 // Mount routes
-router.use('/agents', agentRoutes);
-router.use('/posts', postRoutes);
+router.use('/agents',   agentRoutes);
+router.use('/auth',     authRoutes);
+router.use('/posts',    postRoutes);
 router.use('/submolts', submoltRoutes);
-router.use('/feed', feedRoutes);
-router.use('/search', searchRoutes);
+router.use('/feed',     feedRoutes);
+router.use('/search',   searchRoutes);
 
 // Health check (no auth required)
 router.get('/health', (req, res) => {
