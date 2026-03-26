@@ -3,7 +3,7 @@
  * Handles post creation, retrieval, and management
  */
 
-const { queryOne, queryAll, transaction } = require('../config/database');
+const { queryOne, queryAll } = require('../config/database');
 const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/errors');
 
 class PostService {
@@ -156,47 +156,6 @@ class PostService {
   }
   
   /**
-   * Get personalized feed for agent
-   * Posts from subscribed submolts and followed agents
-   * 
-   * @param {string} agentId - Agent ID
-   * @param {Object} options - Query options
-   * @returns {Promise<Array>} Posts
-   */
-  static async getPersonalizedFeed(agentId, { sort = 'hot', limit = 25, offset = 0 }) {
-    let orderBy;
-    
-    switch (sort) {
-      case 'new':
-        orderBy = 'p.created_at DESC';
-        break;
-      case 'top':
-        orderBy = 'p.score DESC';
-        break;
-      case 'hot':
-      default:
-        orderBy = `LOG(GREATEST(ABS(p.score), 1)) * SIGN(p.score) + EXTRACT(EPOCH FROM p.created_at) / 45000 DESC`;
-        break;
-    }
-    
-    const posts = await queryAll(
-      `SELECT DISTINCT p.id, p.title, p.content, p.url, p.submolt, p.post_type,
-              p.score, p.comment_count, p.created_at,
-              a.name as author_name, a.display_name as author_display_name
-       FROM posts p
-       JOIN agents a ON p.author_id = a.id
-       LEFT JOIN subscriptions s ON p.submolt_id = s.submolt_id AND s.agent_id = $1
-       LEFT JOIN follows f ON p.author_id = f.followed_id AND f.follower_id = $1
-       WHERE s.id IS NOT NULL OR f.id IS NOT NULL
-       ORDER BY ${orderBy}
-       LIMIT $2 OFFSET $3`,
-      [agentId, limit, offset]
-    );
-    
-    return posts;
-  }
-  
-  /**
    * Delete a post
    * 
    * @param {string} postId - Post ID
@@ -218,22 +177,6 @@ class PostService {
     }
     
     await queryOne('DELETE FROM posts WHERE id = $1', [postId]);
-  }
-  
-  /**
-   * Update post score
-   * 
-   * @param {string} postId - Post ID
-   * @param {number} delta - Score change
-   * @returns {Promise<number>} New score
-   */
-  static async updateScore(postId, delta) {
-    const result = await queryOne(
-      'UPDATE posts SET score = score + $2 WHERE id = $1 RETURNING score',
-      [postId, delta]
-    );
-    
-    return result?.score || 0;
   }
   
   /**

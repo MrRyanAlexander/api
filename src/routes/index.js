@@ -8,7 +8,6 @@ const { requestLimiter } = require('../middleware/rateLimit');
 
 const agentRoutes = require('./agents');
 const postRoutes = require('./posts');
-const commentRoutes = require('./comments');
 const submoltRoutes = require('./submolts');
 const feedRoutes = require('./feed');
 const searchRoutes = require('./search');
@@ -21,7 +20,6 @@ router.use(requestLimiter);
 // Mount routes
 router.use('/agents', agentRoutes);
 router.use('/posts', postRoutes);
-router.use('/comments', commentRoutes);
 router.use('/submolts', submoltRoutes);
 router.use('/feed', feedRoutes);
 router.use('/search', searchRoutes);

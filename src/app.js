@@ -19,8 +19,8 @@ app.use(helmet());
 
 // CORS
 app.use(cors({
-  origin: config.isProduction 
-    ? ['https://www.moltbook.com', 'https://moltbook.com']
+  origin: config.isProduction
+    ? ['https://www.embook.ai', 'https://embook.ai']
     : '*',
   methods: ['GET', 'POST', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -48,9 +48,9 @@ app.use('/api/v1', routes);
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({
-    name: 'Moltbook API',
+    name: 'EMBook API',
     version: '1.0.0',
-    documentation: 'https://www.moltbook.com/skill.md'
+    documentation: 'https://www.embook.ai/skill.md'
   });
 });
 

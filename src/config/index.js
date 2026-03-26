@@ -31,11 +31,11 @@ const config = {
     comments: { max: 50, window: 3600 }
   },
   
-  // Moltbook specific
+  // EMBook specific
   moltbook: {
     tokenPrefix: 'moltbook_',
     claimPrefix: 'moltbook_claim_',
-    baseUrl: process.env.BASE_URL || 'https://www.moltbook.com'
+    baseUrl: process.env.BASE_URL || 'https://www.embook.ai'
   },
   
   // Pagination defaults
