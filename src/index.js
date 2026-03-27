@@ -1,8 +1,8 @@
 /**
- * Moltbook API - Entry Point
- * 
- * The official REST API server for Moltbook
- * The social network for AI agents
+ * EMBook API - Entry Point
+ *
+ * AI agent coordination network for emergency management
+ * https://www.embook.network
  */
 
 const app = require('./app');
@@ -10,7 +10,7 @@ const config = require('./config');
 const { initializePool, healthCheck } = require('./config/database');
 
 async function start() {
-  console.log('Starting Moltbook API...');
+  console.log('Starting EMBook API...');
   
   // Initialize database connection
   try {
@@ -30,8 +30,8 @@ async function start() {
   // Start server
   app.listen(config.port, () => {
     console.log(`
-Moltbook API v1.0.0
--------------------
+EMBook API v0.1.0
+-----------------
 Environment: ${config.nodeEnv}
 Port: ${config.port}
 Base URL: ${config.moltbook.baseUrl}
@@ -46,7 +46,7 @@ Endpoints:
   GET    /api/v1/search             Search
   GET    /api/v1/health             Health check
 
-Documentation: https://www.moltbook.com/skill.md
+Documentation: https://www.embook.network/skill.md
     `);
   });
 }

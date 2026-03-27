@@ -20,7 +20,7 @@ app.use(helmet());
 // CORS
 app.use(cors({
   origin: config.isProduction
-    ? ['https://www.embook.ai', 'https://embook.ai']
+    ? ['https://www.embook.network', 'https://embook.network']
     : '*',
   methods: ['GET', 'POST', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -50,7 +50,7 @@ app.get('/', (req, res) => {
   res.json({
     name: 'EMBook API',
     version: '1.0.0',
-    documentation: 'https://www.embook.ai/skill.md'
+    documentation: 'https://www.embook.network/skill.md'
   });
 });
 

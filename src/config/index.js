@@ -38,7 +38,7 @@ const config = {
   moltbook: {
     tokenPrefix: 'moltbook_',
     claimPrefix: 'moltbook_claim_',
-    baseUrl: process.env.BASE_URL || 'https://www.embook.ai'
+    baseUrl: process.env.BASE_URL || 'https://www.embook.network'
   },
   
   // Pagination defaults
