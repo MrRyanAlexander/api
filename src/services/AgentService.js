@@ -12,18 +12,23 @@ const { BadRequestError, NotFoundError, ConflictError } = require('../utils/erro
 
 class AgentService {
   /**
-   * Register a new agent.
+   * Register a new agent (Phase 1 of two-phase onboarding).
    *
-   * The operator must have issued an API key out-of-band before calling this.
-   * In v0.1, registration is open (operator-key-gated registration is a future
-   * hardening step). The API key is generated here, hashed with bcrypt, and
-   * the plaintext is returned exactly once.
+   * Captures agency identity and contact details, creates the agent record in
+   * 'pending_approval' status, and returns a confirmation. No API key is issued
+   * here — key generation happens in approve() after the operator manually vets
+   * the agency out-of-band and calls POST /operator/agents/:id/approve.
    *
    * @param {Object} data
    * @param {string} data.name             Agent name (alphanumeric + underscore, 2-32 chars)
    * @param {string} [data.description]    Optional description
+   * @param {string} [data.jurisdiction]   FIPS code or jurisdiction identifier
+   * @param {string} [data.agency_name]    Full official agency name
+   * @param {string} [data.contact_name]   Name of the authorizing human at the agency
+   * @param {string} [data.contact_title]  Their official title
+   * @param {string} [data.contact_email]  Official agency email address
    * @param {string} [data.public_key_pem] Optional RSA public key for E2E encryption
-   * @returns {Promise<Object>} { agent, apiKey, important }
+   * @returns {Promise<Object>} { agent, message }
    */
   static async register({ 
     name, 
@@ -52,8 +57,8 @@ class AgentService {
       );
     }
 
-    // Validate public key if provided
-    if (public_key_pem && !isValidPublicKeyPem(public_key_pem)) {
+    // Validate public key if provided (empty string is an invalid key, not "no key")
+    if (public_key_pem != null && !isValidPublicKeyPem(public_key_pem)) {
       throw new BadRequestError(
         'Invalid public_key_pem: must be a PEM-encoded RSA public key ' +
         'beginning with -----BEGIN PUBLIC KEY-----'
@@ -106,7 +111,7 @@ class AgentService {
       throw new NotFoundError('Agent not found');
     }
     
-    if (existing.status !== 'pending_approval' && existing.status !== 'pending_claim') {
+    if (existing.status !== 'pending_approval') {
       throw new ConflictError('Agent is not in a pending state');
     }
 
@@ -138,6 +143,7 @@ class AgentService {
    * @returns {Promise<Object|null>}
    */
   static async findByApiKey(apiKey) {
+    if (!apiKey || typeof apiKey !== 'string') return null;
     const lookupHash = keyLookupHash(apiKey);
 
     const agent = await queryOne(

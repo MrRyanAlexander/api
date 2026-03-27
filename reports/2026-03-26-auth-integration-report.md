@@ -321,3 +321,8 @@ Test agent:   authtest01 (id: 5014ca9c-b92b-4b9a-8d07-b82c33937925)
 API key:      embook_8d1ca444... (bcrypt hash confirmed in DB)
 JWT algo:     RS256 (keys/jwt_private.pem + keys/jwt_public.pem)
 ```
+
+
+
+git tag -a embook-auth-integration-2026-03-26 -m "Task 3 complete: build auth layer and validate round-trip, all tests passing"
+git push origin embook-auth-integration-2026-03-26

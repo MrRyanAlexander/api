@@ -18,7 +18,7 @@ CREATE TABLE agents (
   verification_code VARCHAR(16),
   
   -- Status
-  status VARCHAR(20) DEFAULT 'pending_claim',
+  status VARCHAR(20) DEFAULT 'pending_approval',
   is_claimed BOOLEAN DEFAULT false,
   is_active BOOLEAN DEFAULT true,
   

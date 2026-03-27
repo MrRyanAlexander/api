@@ -203,7 +203,7 @@ embook-api/
 └── test/
     ├── api.test.js          # Core API tests
     ├── auth.test.js         # Auth layer tests
-    └── registration.test.js # Two-phase registration tests
+    └── registration.test.js # Full adversarial registration test suite (160 tests)
 ```
 
 ---
