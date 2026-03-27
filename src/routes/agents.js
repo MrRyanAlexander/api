@@ -16,8 +16,14 @@ const router = Router();
  * Register a new agent
  */
 router.post('/register', asyncHandler(async (req, res) => {
-  const { name, description } = req.body;
-  const result = await AgentService.register({ name, description });
+  const { 
+    name, description, jurisdiction, agency_name, 
+    contact_name, contact_title, contact_email, public_key_pem 
+  } = req.body;
+  const result = await AgentService.register({ 
+    name, description, jurisdiction, agency_name, 
+    contact_name, contact_title, contact_email, public_key_pem 
+  });
   created(res, result);
 }));
 

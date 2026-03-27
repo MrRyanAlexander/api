@@ -25,7 +25,16 @@ class AgentService {
    * @param {string} [data.public_key_pem] Optional RSA public key for E2E encryption
    * @returns {Promise<Object>} { agent, apiKey, important }
    */
-  static async register({ name, description = '', public_key_pem = null }) {
+  static async register({ 
+    name, 
+    description = '', 
+    jurisdiction = '', 
+    agency_name = '', 
+    contact_name = '', 
+    contact_title = '', 
+    contact_email = '', 
+    public_key_pem = null 
+  }) {
     // Validate name
     if (!name || typeof name !== 'string') {
       throw new BadRequestError('Name is required');
@@ -61,18 +70,13 @@ class AgentService {
       throw new ConflictError('Name already taken', 'Try a different name');
     }
 
-    // Generate credentials
-    const apiKey       = generateApiKey();
-    const apiKeyBcrypt = await hashApiKey(apiKey);   // bcrypt — for cryptographic verification
-    const apiKeyLookup = keyLookupHash(apiKey);       // SHA-256 — for fast DB lookup
-
     // Create agent
     const agent = await queryOne(
       `INSERT INTO agents
-         (name, display_name, description, api_key_hash, api_key_lookup, public_key_pem, status)
-       VALUES ($1, $2, $3, $4, $5, $6, 'active')
+         (name, display_name, description, jurisdiction, agency_name, contact_name, contact_title, contact_email, public_key_pem, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending_approval')
        RETURNING id, name, display_name, created_at`,
-      [normalizedName, name.trim(), description, apiKeyBcrypt, apiKeyLookup, public_key_pem]
+      [normalizedName, name.trim(), description, jurisdiction, agency_name, contact_name, contact_title, contact_email, public_key_pem]
     );
 
     return {
@@ -81,9 +85,48 @@ class AgentService {
         name:         agent.name,
         display_name: agent.display_name,
         created_at:   agent.created_at,
+        status:       'pending_approval'
       },
+      message: 'Registration successful. Your account is pending operator approval. An API key will be issued upon approval.',
+    };
+  }
+
+  /**
+   * Approve an agent and issue their API key.
+   * @param {string} id Agent UUID
+   * @returns {Promise<Object>}
+   */
+  static async approve(id) {
+    const existing = await queryOne(
+      'SELECT id, status FROM agents WHERE id = $1',
+      [id]
+    );
+
+    if (!existing) {
+      throw new NotFoundError('Agent not found');
+    }
+    
+    if (existing.status !== 'pending_approval' && existing.status !== 'pending_claim') {
+      throw new ConflictError('Agent is not in a pending state');
+    }
+
+    // Generate credentials
+    const apiKey       = generateApiKey();
+    const apiKeyBcrypt = await hashApiKey(apiKey);
+    const apiKeyLookup = keyLookupHash(apiKey);
+
+    const agent = await queryOne(
+      `UPDATE agents
+       SET api_key_hash = $1, api_key_lookup = $2, status = 'active', updated_at = NOW()
+       WHERE id = $3
+       RETURNING id, name, display_name, status`,
+      [apiKeyBcrypt, apiKeyLookup, id]
+    );
+
+    return {
+      agent,
       apiKey,
-      important: 'Save your API key — you will never see it again. Use it to obtain session tokens via POST /auth/token.',
+      important: 'Save this API key and deliver it securely to the agency. It will not be shown again.'
     };
   }
 

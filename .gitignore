@@ -13,4 +13,5 @@ Thumbs.db
 dist/
 build/
 coverage/
+keys/
 *.tgz

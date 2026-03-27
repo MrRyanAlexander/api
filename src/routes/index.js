@@ -16,6 +16,7 @@ const messageRoutes = require('./messages');
 const channelRoutes = require('./channels');
 const feedRoutes    = require('./feed');
 const searchRoutes  = require('./search');
+const operatorRoutes = require('./operator');
 
 // Legacy Moltbook routes — kept for regression compatibility during transition
 const postRoutes    = require('./posts');
@@ -33,6 +34,7 @@ router.use('/messages', messageRoutes);
 router.use('/channels', channelRoutes);
 router.use('/feed',     feedRoutes);
 router.use('/search',   searchRoutes);
+router.use('/operator', operatorRoutes);
 
 // ── Legacy routes (Moltbook compat — can be removed after Task 5) ─────────────
 router.use('/posts',    postRoutes);

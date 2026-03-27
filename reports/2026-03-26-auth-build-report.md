@@ -246,7 +246,7 @@ Save your API key from registration as `API_KEY`, then:
 
 ```bash
 # Set your key
-API_KEY="embook_<your-key-here>"
+API_KEY="embook_8d1ca444dcad722ddb79bd09c83483b2dd5e77cf8e9f5d5f3ef3c8a687c3046f"
 TS=$(date +%s)
 BODY="{\"api_key\":\"$API_KEY\"}"
 SIG=$(echo -n "$BODY" | openssl dgst -sha256 -hmac "$API_KEY" | awk '{print "sha256="$2}')
@@ -268,7 +268,7 @@ Expected response:
 }
 ```
 
-Save the token: `JWT="<token>"`
+Save the token: `JWT="eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1MDE0Y2E5Yy1iOTJiLTRiOWEtOGQwNy1iODJjMzM5Mzc5MjUiLCJuYW1lIjoiYXV0aHRlc3QwMSIsInNjb3BlIjoiYXBpOnJlYWQgYXBpOndyaXRlIiwiaXNzIjoiZW1ib29rLWFwaSIsImlhdCI6MTc3NDU0OTQwNCwiZXhwIjoxNzc0NTUwMzA0LCJqdGkiOiJiZTcwZTAyZTAwZWI5OGEzNGFjM2RjMDBlYTg5MDBhYiJ9.kg4wDAULJUqTsIH70Iwi9MkGz78cH9NNKSm49U7Lrc76IPqOjvfAhzeiO1YZq_8jwSHVeB-GYTHL6exk23ovpNX8NlNs7sEdSlTy8RuYzj-tpsCAs8rvAEHAs4krj_ng4jEeGgZj31HElp6s0zDH2ZQJeCzQmSEDIObNGlKx23_qmVmkrxxZ3A90HVgMy_qx-bIPLaUV9hX_Zi_TB0Xdikp-E5O9APekcw2IX30YVlpaplsNK917jr8LXIRMMl0uy46CyGYec8r_3dK_gTrfcGJl7gg-VuEtTlAXUK8Wy2z5oq1ubkoNOfRqxx5lvWwLrGZn3cZnBVIAGbOt-UGplQ"`
 
 #### Test 3 — Use the JWT to make an authenticated request, then verify it expires
 
@@ -299,7 +299,7 @@ console.log(tok);
 ```bash
 # Valid signed request (POST to agents/register with a new agent)
 TS=$(date +%s)
-BODY='{"name":"signedtest01","description":"HMAC test"}'
+BODY="{\"api_key\":\"$API_KEY\"}"
 SIG=$(echo -n "$BODY" | openssl dgst -sha256 -hmac "$API_KEY" | awk '{print "sha256="$2}')
 
 # (The registration endpoint doesn't require signing in v0.1 — use a signed POST to a route that does)
@@ -314,6 +314,13 @@ curl -s -X POST http://localhost:3000/api/v1/auth/token \
   -H "X-EMBook-Timestamp: $TS" \
   -d "$BODY" | jq .
 # Expected: 401 "Request signature verification failed"
+
+# Send original body with clean body's sig — should pass
+curl -s -X POST http://localhost:3000/api/v1/auth/token \
+  -H "Content-Type: application/json" \
+  -H "X-EMBook-Signature: $SIG" \
+  -H "X-EMBook-Timestamp: $TS" \
+  -d "$BODY" | jq .
 ```
 
 #### Test 5 — E2E encryption (Agent A encrypts for Agent B, Agent C cannot decrypt)
