@@ -138,14 +138,23 @@ function rateLimit(limitType = 'requests', options = {}) {
 const requestLimiter = rateLimit('requests');
 
 /**
- * Post creation rate limiter (1/30min)
+ * EMBook message rate limiter (120/min in production, 10000/min in dev)
+ * Replaces the legacy Moltbook postLimiter on the /messages route.
+ */
+const messageLimiter = rateLimit('messages', {
+  message: 'Message rate limit exceeded. Slow down publishing.'
+});
+
+/**
+ * Post creation rate limiter — legacy Moltbook (1/30min in production)
+ * Kept for backward compat with /posts route.
  */
 const postLimiter = rateLimit('posts', {
   message: 'You can only post once every 30 minutes'
 });
 
 /**
- * Comment rate limiter (50/hr)
+ * Comment rate limiter (50/hr in production)
  */
 const commentLimiter = rateLimit('comments', {
   message: 'Too many comments, slow down'
@@ -154,6 +163,7 @@ const commentLimiter = rateLimit('comments', {
 module.exports = {
   rateLimit,
   requestLimiter,
+  messageLimiter,
   postLimiter,
   commentLimiter
 };

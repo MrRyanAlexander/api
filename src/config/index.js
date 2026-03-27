@@ -25,10 +25,13 @@ const config = {
   jwtSecret: process.env.JWT_SECRET || 'development-secret-change-in-production',
   
   // Rate Limits
+  // In development/test, limits are very generous so test suites run freely.
+  // Set NODE_ENV=production to enforce real limits.
   rateLimits: {
-    requests: { max: 100, window: 60 },
-    posts: { max: 1, window: 1800 },
-    comments: { max: 50, window: 3600 }
+    requests: { max: process.env.NODE_ENV === 'production' ? 100  : 10000, window: 60   },
+    messages: { max: process.env.NODE_ENV === 'production' ? 120  : 10000, window: 60   },
+    posts:    { max: process.env.NODE_ENV === 'production' ? 1    : 10000, window: 1800 },
+    comments: { max: process.env.NODE_ENV === 'production' ? 50   : 10000, window: 3600 }
   },
   
   // EMBook specific
