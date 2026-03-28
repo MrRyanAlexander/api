@@ -53,7 +53,7 @@ function validateConfig() {
   const required = [];
   
   if (config.isProduction) {
-    required.push('DATABASE_URL', 'JWT_SECRET');
+    required.push('DATABASE_URL', 'OPERATOR_SECRET');
   }
   
   const missing = required.filter(key => !process.env[key]);

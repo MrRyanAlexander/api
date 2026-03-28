@@ -50,9 +50,9 @@ function loadKeys() {
   }
 
   const privateKeyPath = process.env.JWT_PRIVATE_KEY_PATH
-    || path.join(process.cwd(), 'keys', 'jwt_private.pem');
+    || path.join(__dirname, '..', '..', 'keys', 'jwt_private.pem');
   const publicKeyPath  = process.env.JWT_PUBLIC_KEY_PATH
-    || path.join(process.cwd(), 'keys', 'jwt_public.pem');
+    || path.join(__dirname, '..', '..', 'keys', 'jwt_public.pem');
 
   if (fs.existsSync(privateKeyPath) && fs.existsSync(publicKeyPath)) {
     _privateKey = fs.readFileSync(privateKeyPath, 'utf8');
@@ -60,24 +60,23 @@ function loadKeys() {
     return;
   }
 
-  // Development fallback: generate an ephemeral key pair in memory.
-  // This is NOT safe for production — the operator README documents why.
-  if (process.env.NODE_ENV !== 'production') {
-    const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
-      modulusLength:    2048,
-      publicKeyEncoding:  { type: 'spki',  format: 'pem' },
-      privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
-    });
-    _privateKey = privateKey;
-    _publicKey  = publicKey;
-    console.warn('[tokens] WARNING: using ephemeral RSA key pair. Run scripts/generate-keys.js to persist keys.');
-    return;
+  // Fallback: generate an ephemeral key pair in memory.
+  // In production, this means tokens won't survive a restart — agents will need
+  // to re-authenticate after each deploy. Set JWT_PRIVATE_KEY / JWT_PUBLIC_KEY
+  // env vars to persist keys across deploys.
+  const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
+    modulusLength:    2048,
+    publicKeyEncoding:  { type: 'spki',  format: 'pem' },
+    privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+  });
+  _privateKey = privateKey;
+  _publicKey  = publicKey;
+  if (process.env.NODE_ENV === 'production') {
+    console.warn('[tokens] WARNING: using ephemeral RSA keys. Tokens will not survive a restart.');
+    console.warn('[tokens] Set JWT_PRIVATE_KEY and JWT_PUBLIC_KEY env vars for persistent keys.');
+  } else {
+    console.warn('[tokens] Using ephemeral RSA keys (development mode).');
   }
-
-  throw new Error(
-    'JWT key files not found. Set JWT_PRIVATE_KEY_PATH / JWT_PUBLIC_KEY_PATH or ' +
-    'run scripts/generate-keys.js to create them.'
-  );
 }
 
 // ─── Token issuance ──────────────────────────────────────────────────────────

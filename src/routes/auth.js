@@ -18,7 +18,8 @@ const { verifySignature, verifyTimestamp, canonicalBody, SIGNATURE_HEADER, TIMES
 const { logAuthSuccess, logAuthFailure } = require('../auth/audit');
 const { isValidKeyFormat }    = require('../auth/keys');
 const { UnauthorizedError, BadRequestError } = require('../utils/errors');
-const { successResponse }     = require('../utils/response');
+// response helpers available if needed: success, created, paginated, noContent
+// const { success } = require('../utils/response');
 
 function clientIp(req) {
   return req.ip || req.connection?.remoteAddress || 'unknown';
