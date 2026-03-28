@@ -10,7 +10,7 @@
 
 const { Router } = require('express');
 const { asyncHandler }  = require('../middleware/errorHandler');
-const { requireAuth }   = require('../middleware/auth');
+const { requireAuth, requireSigned } = require('../middleware/auth');
 const { messageLimiter } = require('../middleware/rateLimit');
 const { success, created, paginated } = require('../utils/response');
 const MessageService = require('../services/MessageService');
@@ -25,7 +25,7 @@ const router = Router();
  * Required body fields: channel, jurisdiction, phase, message_type, payload
  * Optional: parent_id, incident_id, visibility
  */
-router.post('/', requireAuth, messageLimiter, asyncHandler(async (req, res) => {
+router.post('/', requireAuth, requireSigned, messageLimiter, asyncHandler(async (req, res) => {
   const {
     parent_id,
     channel,

@@ -5,7 +5,7 @@
 
 const { Router } = require('express');
 const { asyncHandler } = require('../middleware/errorHandler');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireSigned } = require('../middleware/auth');
 const { success, created } = require('../utils/response');
 const AgentService = require('../services/AgentService');
 
@@ -39,7 +39,7 @@ router.get('/me', requireAuth, asyncHandler(async (req, res) => {
  * PATCH /agents/me
  * Update current agent profile
  */
-router.patch('/me', requireAuth, asyncHandler(async (req, res) => {
+router.patch('/me', requireAuth, requireSigned, asyncHandler(async (req, res) => {
   const { description, displayName } = req.body;
   const agent = await AgentService.update(req.agent.id, {
     description,

@@ -101,6 +101,30 @@ class MessageService {
     }
     const payloadObj = typeof payload === 'string' ? JSON.parse(payload) : payload;
 
+    // ── Encryption enforcement for private / mutual_aid ─────────────────
+    if (visibility === 'private' || visibility === 'mutual_aid') {
+      if (typeof payloadObj !== 'object' || payloadObj === null) {
+        throw new BadRequestError(
+          'Private and mutual_aid messages require an encrypted payload envelope'
+        );
+      }
+      if (!payloadObj.encrypted || payloadObj.encrypted !== true) {
+        throw new BadRequestError(
+          'Private and mutual_aid messages must have an encrypted payload. ' +
+          'Set payload.encrypted = true and include encrypted_key, iv, auth_tag, and ciphertext fields. ' +
+          'See SCHEMAS.md for the encryption envelope format.'
+        );
+      }
+      const requiredEnvelopeFields = ['algorithm', 'encrypted_key', 'iv', 'auth_tag', 'ciphertext'];
+      const missingFields = requiredEnvelopeFields.filter(f => !payloadObj[f]);
+      if (missingFields.length > 0) {
+        throw new BadRequestError(
+          `Encrypted payload is missing required fields: ${missingFields.join(', ')}. ` +
+          'See SCHEMAS.md for the encryption envelope format.'
+        );
+      }
+    }
+
     // ── Channel validation ─────────────────────────────────────────────────
     const normalizedChannel = normalizeChannel(channel);
     await assertChannelExists(normalizedChannel);
