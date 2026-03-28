@@ -1,12 +1,12 @@
 -- EMBook Task 4 — Messages + ICS Channels Migration
--- Run: psql -U moltbook -d moltbook -f scripts/migrate-messages.sql
+-- Run: railway run npm run db:migrate (or node scripts/migrate.js with DATABASE_URL set)
 -- Safe to run multiple times (idempotent).
 
 -- ─────────────────────────────────────────────
 -- 1. CHANNELS table (replaces freeform submolts)
 -- ─────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS channels (
-  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name         VARCHAR(64) UNIQUE NOT NULL,   -- e.g. "r/sitrep"
   prefix       VARCHAR(4) NOT NULL,            -- p | r | v | x
   display_name VARCHAR(128) NOT NULL,
@@ -39,7 +39,7 @@ ON CONFLICT (name) DO NOTHING;
 -- ─────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS messages (
   -- Identity
-  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   agent_id     UUID NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
   parent_id    UUID REFERENCES messages(id) ON DELETE SET NULL,
 

@@ -50,7 +50,7 @@ CREATE INDEX IF NOT EXISTS idx_audit_log_outcome    ON audit_log(outcome);
 -- v0.1 does not implement revocation, but the table is here for Task 7 hardening.
 
 CREATE TABLE IF NOT EXISTS token_issuances (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   agent_id    UUID NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
   jti         VARCHAR(32) UNIQUE NOT NULL,  -- JWT ID claim
   issued_at   TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

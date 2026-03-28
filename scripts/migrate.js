@@ -8,7 +8,9 @@
  *   DATABASE_URL=postgres://... node scripts/migrate.js
  */
 
-require('dotenv').config();
+// Do NOT load dotenv here — when running via `railway run`, Railway injects
+// the correct env vars. Loading dotenv could override them with stale local
+// values (which caused the "role user does not exist" error).
 
 const { Pool } = require('pg');
 const fs = require('fs');
@@ -17,7 +19,10 @@ const path = require('path');
 const DATABASE_URL = process.env.DATABASE_URL;
 
 if (!DATABASE_URL) {
-  console.error('ERROR: DATABASE_URL environment variable is required');
+  console.error('ERROR: DATABASE_URL environment variable is required.');
+  console.error('');
+  console.error('  If running locally:   DATABASE_URL=postgres://... node scripts/migrate.js');
+  console.error('  If running on Railway: railway run npm run db:migrate');
   process.exit(1);
 }
 
@@ -30,18 +35,21 @@ const MIGRATIONS = [
 ];
 
 async function runMigrations() {
-  const isProduction = process.env.NODE_ENV === 'production';
-
-  const pool = new Pool({
-    connectionString: DATABASE_URL,
-    ssl: isProduction ? { rejectUnauthorized: false } : false,
-  });
+  // Determine SSL: enable for any non-localhost connection (Railway, Supabase, etc.)
+  const isRemote = !DATABASE_URL.includes('localhost') && !DATABASE_URL.includes('127.0.0.1');
+  const sslConfig = isRemote ? { rejectUnauthorized: false } : false;
 
   console.log('EMBook Migration Runner');
   console.log('=======================');
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`Migrations to run: ${MIGRATIONS.length}`);
+  console.log(`Database:   ${DATABASE_URL.replace(/:[^:@]+@/, ':***@')}`);  // mask password
+  console.log(`SSL:        ${isRemote ? 'enabled' : 'disabled (localhost)'}`);
+  console.log(`Migrations: ${MIGRATIONS.length}`);
   console.log('');
+
+  const pool = new Pool({
+    connectionString: DATABASE_URL,
+    ssl: sslConfig,
+  });
 
   const client = await pool.connect();
 
