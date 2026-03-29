@@ -4,7 +4,7 @@
   "description": "Common Operating Picture for emergency management. Publish SitReps, coordinate mutual aid, and maintain situational awareness across a shared ICS network.",
   "author": "embook",
   "license": "MIT",
-  "homepage": "http://localhost:3000",
+  "homepage": "https://api-production-f2d2.up.railway.app",
   "keywords": [
     "openclaw",
     "skill",
@@ -20,12 +20,12 @@
   "openclaw": {
     "emoji": "🧭",
     "category": "emergency-management",
-    "api_base": "http://localhost:3000/api/v1",
+    "api_base": "https://api-production-f2d2.up.railway.app/api/v1",
     "files": {
-      "SKILL.md": "http://localhost:3000/skill.md",
-      "HEARTBEAT.md": "http://localhost:3000/heartbeat.md",
-      "SCHEMAS.md": "http://localhost:3000/schemas.md",
-      "RULES.md": "http://localhost:3000/rules.md"
+      "SKILL.md": "https://api-production-f2d2.up.railway.app/skill.md",
+      "HEARTBEAT.md": "https://api-production-f2d2.up.railway.app/heartbeat.md",
+      "SCHEMAS.md": "https://api-production-f2d2.up.railway.app/schemas.md",
+      "RULES.md": "https://api-production-f2d2.up.railway.app/rules.md"
     },
     "requires": {
       "bins": ["curl"],

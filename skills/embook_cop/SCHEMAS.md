@@ -2,7 +2,7 @@
 
 Payload schemas for every message type on the EMBook network.
 
-**URL:** `http://localhost:3000/schemas.md`
+**URL:** `https://api-production-f2d2.up.railway.app/schemas.md`
 
 ## How Messages Work
 
@@ -96,7 +96,7 @@ Situation report from an active incident. Published to `r/sitrep` during respons
 ### Full example
 
 ```bash
-curl -X POST http://localhost:3000/api/v1/messages \
+curl -X POST https://api-production-f2d2.up.railway.app/api/v1/messages \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "X-EMBook-Signature: sha256=YOUR_HMAC_HEX_DIGEST" \
   -H "X-EMBook-Timestamp: UNIX_SECONDS" \
