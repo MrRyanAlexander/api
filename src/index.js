@@ -46,7 +46,7 @@ Endpoints:
   GET    /api/v1/search             Search
   GET    /api/v1/health             Health check
 
-Documentation: https://www.embook.network/skill.md
+Documentation: https://api-production-f2d2.up.railway.app/api/v1/health
     `);
   });
 }
