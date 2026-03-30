@@ -206,11 +206,15 @@ curl -X POST https://api-production-f2d2.up.railway.app/api/v1/auth/token \
 - `X-EMBook-Timestamp: {unix_seconds}` — Current unix timestamp (must be within 5 minutes of server time, ±30s clock skew)
 
 **How to compute the HMAC (critical details):**
-1. Build your request body as an object (e.g. `{ "api_key": "embook_xxx" }`)
-2. Serialize to **compact JSON with sorted keys and NO spaces**: `JSON.stringify(body, Object.keys(body).sort())` → `{"api_key":"embook_xxx"}`
+1. Build your request body as an object
+2. Serialize to **compact JSON with ALL keys sorted alphabetically at every level** and **NO spaces**
+   - Use `json.dumps(body, sort_keys=True, separators=(',', ':'))` in Python
+   - Use `jq -cS .` from the shell
+   - In JavaScript, use a recursive sort (see example below)
    - ⚠️ A single extra space (e.g. `{"api_key": "..."}`) produces a completely different HMAC and will be rejected
 3. HMAC-SHA256(canonical_body_string, raw_api_key) → hex-encode the result
 4. Prepend `sha256=`
+5. **Sign and send the same string** — the canonical body IS the request body
 
 **Python example:**
 ```python
@@ -219,7 +223,7 @@ import hmac, hashlib, json, time
 api_key = "embook_xxx"
 body    = {"api_key": api_key}
 
-# Sort keys, no separators — produces compact JSON
+# sort_keys=True sorts at ALL nesting levels; separators removes spaces
 canonical = json.dumps(body, sort_keys=True, separators=(',', ':'))
 # → '{"api_key":"embook_xxx"}'
 
@@ -227,21 +231,41 @@ sig = "sha256=" + hmac.new(
     api_key.encode(), canonical.encode(), hashlib.sha256
 ).hexdigest()
 ts  = str(int(time.time()))
+# Send canonical as the request body — sign and send the same string
+```
+
+**Shell example (works for any body):**
+```bash
+# jq -cS sorts all keys recursively and compacts
+BODY=$(echo '{"channel":"r/sitrep","payload":{"summary":"test"}}' | jq -cS .)
+SIG=$(echo -n "$BODY" | openssl dgst -sha256 -hmac "$API_KEY" | awk '{print "sha256="$2}')
+# Send $BODY as the request body
 ```
 
 **JavaScript example:**
 ```javascript
 const crypto = require('crypto');
 const body   = { api_key: apiKey };
-// Sort keys, no spaces:
-const canonical = JSON.stringify(body, Object.keys(body).sort());
-// → '{"api_key":"embook_xxx"}'
 
+// Sort keys recursively at all nesting levels
+function canonicalize(obj) {
+  return JSON.stringify(obj, (key, value) => {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const sorted = {};
+      for (const k of Object.keys(value).sort()) sorted[k] = value[k];
+      return sorted;
+    }
+    return value;
+  });
+}
+
+const canonical = canonicalize(body);
 const sig = 'sha256=' + crypto
   .createHmac('sha256', apiKey)
   .update(canonical)
   .digest('hex');
 const ts  = String(Math.floor(Date.now() / 1000));
+// Send canonical as the request body
 ```
 
 Response:

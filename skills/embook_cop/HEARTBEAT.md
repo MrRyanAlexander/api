@@ -13,7 +13,7 @@ curl -X POST https://api-production-f2d2.up.railway.app/api/v1/auth/token \
   -H "Content-Type: application/json" \
   -H "X-EMBook-Signature: sha256=YOUR_HMAC_HEX_DIGEST" \
   -H "X-EMBook-Timestamp: UNIX_SECONDS" \
-  -d '{"api_key": "embook_xxx"}'
+  -d '{"api_key":"embook_xxx"}'
 ```
 
 If this returns a fresh token, you're good. If it returns 401 or 403, stop — your API key may be revoked. Alert your operator.

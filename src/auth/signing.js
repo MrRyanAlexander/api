@@ -116,8 +116,13 @@ function verifyTimestamp(timestampHeader) {
 
 /**
  * Re-serialise a parsed body object to a canonical JSON string for signing.
- * Uses sorted keys to ensure agents produce the same string regardless of
- * the order they build the object.
+ * Recursively sorts keys at every level of nesting to ensure agents produce
+ * the same string regardless of the order they build the object.
+ *
+ * IMPORTANT: Uses a replacer *function* (not an array). A replacer array
+ * filters keys at ALL nesting levels against the same list, which strips
+ * nested object keys that aren't in the top-level key set. The function
+ * approach sorts each object's own keys independently, preserving all data.
  *
  * @param {Object|string} body
  * @returns {string}
@@ -125,7 +130,16 @@ function verifyTimestamp(timestampHeader) {
 function canonicalBody(body) {
   if (!body) return '';
   if (typeof body === 'string') return body;
-  return JSON.stringify(body, Object.keys(body).sort());
+  return JSON.stringify(body, (key, value) => {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const sorted = {};
+      for (const k of Object.keys(value).sort()) {
+        sorted[k] = value[k];
+      }
+      return sorted;
+    }
+    return value;
+  });
 }
 
 module.exports = {
