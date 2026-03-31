@@ -1,4 +1,4 @@
-name: MoltBot Auto Reply
+name: EMBook Auto Reply
 
 on:
   issues:
@@ -6,116 +6,163 @@ on:
   issue_comment:
     types: [created]
 
+permissions:
+  issues: write
+
 jobs:
   auto-reply:
     runs-on: ubuntu-latest
-    # Don't reply to own comments
-    if: github.event.comment.user.login != 'github-actions[bot]' || github.event_name == 'issues'
-    
+
     steps:
       - name: Generate AI Response
         uses: actions/github-script@v7
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         with:
           script: |
             const issue = context.payload.issue;
             const comment = context.payload.comment;
-            const isNewIssue = context.eventName === 'issues' && context.payload.action === 'opened';
-            const isComment = context.eventName === 'issue_comment';
-            
-            // Skip if bot comment
-            if (isComment && comment.user.type === 'Bot') {
-              console.log('Skipping bot comment');
+
+            const isIssueOpened =
+              context.eventName === 'issues' && context.payload.action === 'opened';
+            const isIssueEdited =
+              context.eventName === 'issues' && context.payload.action === 'edited';
+            const isComment =
+              context.eventName === 'issue_comment' && context.payload.action === 'created';
+
+            // Skip bot comments
+            if (isComment && comment?.user?.type === 'Bot') {
+              core.info('Skipping bot comment');
               return;
             }
-            
-            // Build context
+
+            if (!process.env.OPENAI_API_KEY) {
+              core.setFailed('Missing OPENAI_API_KEY secret');
+              return;
+            }
+
             let userMessage = '';
-            if (isNewIssue) {
-              userMessage = `New Issue Opened:
-            
+
+            if (isIssueOpened) {
+              userMessage = `New issue opened
+
             Title: ${issue.title}
             Author: @${issue.user.login}
             Labels: ${issue.labels.map(l => l.name).join(', ') || 'none'}
-            
+
             Body:
             ${issue.body || 'No description provided'}
-            
-            Generate a helpful first response. Ask for more details if needed. Be friendly and professional.`;
+
+            Write a helpful first response. Ask for more details if needed. Be friendly and professional.`;
+            } else if (isIssueEdited) {
+              userMessage = `Issue edited
+
+            Title: ${issue.title}
+            Author: @${issue.user.login}
+            Labels: ${issue.labels.map(l => l.name).join(', ') || 'none'}
+
+            Updated body:
+            ${issue.body || 'No description provided'}
+
+            Write a helpful follow-up response that acknowledges the updated details. Ask for any missing information if needed. Be friendly and professional.`;
             } else if (isComment) {
-              userMessage = `Follow-up Comment on Issue:
-            
-            Issue Title: ${issue.title}
-            Comment Author: @${comment.user.login}
-            
+              userMessage = `Follow-up comment on issue
+
+            Issue title: ${issue.title}
+            Comment author: @${comment.user.login}
+
             Comment:
             ${comment.body}
-            
-            Original Issue:
-            ${issue.body || 'No description'}
-            
-            Generate a helpful response to this comment. Be friendly and professional.`;
+
+            Original issue:
+            ${issue.body || 'No description provided'}
+
+            Write a helpful response to this comment. Be friendly and professional.`;
+            } else {
+              core.info('No supported event to process');
+              return;
             }
-            
-            // Call Claude API
-            const response = await fetch('https://api.anthropic.com/v1/messages', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': process.env.ANTHROPIC_API_KEY,
-                'anthropic-version': '2023-06-01'
-              },
-              body: JSON.stringify({
-                model: 'claude-sonnet-4-20250514',
-                max_tokens: 1024,
-                system: `You are MoltBot, the friendly AI assistant for Moltbook - The Social Network for AI Agents.
+
+            const developerInstructions = `You are EMBookBot, the friendly AI assistant for EMBook - the secure, AI-native coordination network for emergency management.
 
             Your role:
-            - Help users with issues and questions about Moltbook repositories
+            - Help users with issues and questions about the EMBook repository
             - Ask clarifying questions when issue details are unclear
             - Provide helpful debugging steps for bug reports
             - Be friendly, professional, and concise
             - Use markdown formatting for readability
-            - If it's a bug report, ask for: steps to reproduce, expected vs actual behavior, error messages, environment details
-            - If it's a feature request, acknowledge it positively and ask for use cases
-            - If it's a question, try to help or direct them to relevant documentation
+            - If it is a bug report, ask for: steps to reproduce, expected vs actual behavior, error messages, and environment details
+            - If it is a feature request, acknowledge it positively and ask for use cases
+            - If it is a question, try to help or direct them to relevant documentation
 
-            Repositories context:
-            - moltbook-frontend: Next.js 14 web app
-            - moltbook-api: Express.js REST API backend
-            - moltbook-agent-development-kit: SDK for TypeScript, Swift, Kotlin
-            - moltbook-auth: Authentication system
-            - moltbook-voting: Voting & karma system
-            - moltbook-comments: Comment system
-            - moltbook-feed: Feed generation
-            - moltbook-rate-limiter: Rate limiting
+            Repository context:
+            - embook-api: Node.js/Express.js REST API backend with PostgreSQL
+            - Security: HMAC-SHA256, RS256 JWT, E2E encryption
+            - Purpose: A proof of concept for emergency management coordination
 
-            Keep responses concise but helpful. Max 2-3 paragraphs.`,
-                messages: [{
-                  role: 'user',
-                  content: userMessage
-                }]
+            Keep responses concise but helpful. Max 2-3 paragraphs.`;
+
+            const response = await fetch('https://api.openai.com/v1/responses', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+              },
+              body: JSON.stringify({
+                model: 'gpt-5.4-mini',
+                reasoning: {
+                  effort: 'none'
+                },
+                text: {
+                  verbosity: 'low'
+                },
+                max_output_tokens: 700,
+                input: [
+                  {
+                    role: 'developer',
+                    content: developerInstructions
+                  },
+                  {
+                    role: 'user',
+                    content: userMessage
+                  }
+                ]
               })
             });
-            
+
             if (!response.ok) {
-              console.log('API Error:', await response.text());
+              const errorText = await response.text();
+              core.setFailed(`OpenAI API error ${response.status}: ${errorText}`);
               return;
             }
-            
+
             const data = await response.json();
-            const reply = data.content[0].text;
-            
-            // Post comment
+
+            const reply =
+              data.output_text?.trim() ||
+              data.output
+                ?.filter(item => item.type === 'message')
+                ?.flatMap(item => item.content || [])
+                ?.filter(part => part.type === 'output_text')
+                ?.map(part => part.text)
+                ?.join('\n')
+                ?.trim();
+
+            if (!reply) {
+              core.setFailed('OpenAI returned no reply text');
+              return;
+            }
+
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issue.number,
-              body: reply + '\n\n---\n🤖 *MoltBot - Automated Response* | [Learn more](https://github.com/moltbook)'
+              body:
+                reply +
+                '\n\n---\n🤖 *EMBookBot - Automated Response* | [Learn more](https://github.com/MrRyanAlexander/api)'
             });
-            
-            console.log('Reply posted successfully!');
+
+            core.info('Reply posted successfully');
 
       - name: Add Labels for New Issues
         if: github.event_name == 'issues' && github.event.action == 'opened'
@@ -125,43 +172,66 @@ jobs:
             const issue = context.payload.issue;
             const title = issue.title.toLowerCase();
             const body = (issue.body || '').toLowerCase();
-            const content = title + ' ' + body;
-            
+            const content = `${title} ${body}`;
+
             const labels = [];
-            
-            // Auto-detect issue type
-            if (content.includes('bug') || content.includes('error') || content.includes('failed') || content.includes('crash') || content.includes('not working')) {
+
+            if (
+              content.includes('bug') ||
+              content.includes('error') ||
+              content.includes('failed') ||
+              content.includes('crash') ||
+              content.includes('not working')
+            ) {
               labels.push('bug');
             }
-            if (content.includes('feature') || content.includes('request') || content.includes('add') || content.includes('implement')) {
+
+            if (
+              content.includes('feature') ||
+              content.includes('request') ||
+              content.includes('add') ||
+              content.includes('implement')
+            ) {
               labels.push('enhancement');
             }
-            if (content.includes('question') || content.includes('how to') || content.includes('help')) {
+
+            if (
+              content.includes('question') ||
+              content.includes('how to') ||
+              content.includes('help')
+            ) {
               labels.push('question');
             }
+
             if (content.includes('api')) {
               labels.push('api');
             }
-            if (content.includes('ui') || content.includes('frontend') || content.includes('design')) {
+
+            if (
+              content.includes('ui') ||
+              content.includes('frontend') ||
+              content.includes('design')
+            ) {
               labels.push('frontend');
             }
-            if (content.includes('docs') || content.includes('documentation')) {
+
+            if (
+              content.includes('docs') ||
+              content.includes('documentation')
+            ) {
               labels.push('documentation');
             }
-            
-            // Always add needs-triage
+
             labels.push('needs-triage');
-            
-            if (labels.length > 0) {
-              try {
-                await github.rest.issues.addLabels({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: issue.number,
-                  labels: labels
-                });
-                console.log('Labels added:', labels);
-              } catch (e) {
-                console.log('Could not add labels (they may not exist):', e.message);
-              }
+
+            try {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels
+              });
+              core.info(`Labels added: ${labels.join(', ')}`);
+            } catch (error) {
+              core.info(`Could not add labels. They may not exist yet. ${error.message}`);
             }
